@@ -24,6 +24,8 @@ redshift={'NDWFS-J1425+3254':5.89,'SDSS-J0005-0006':5.85,'SDSS-J0203+0012':5.72,
 angular_scale={'NDWFS-J1425+3254':6.026,'SDSS-J0005-0006':6.049,'SDSS-J0203+0012':6.122,
 'CFHQS-J0033-0125':5.895,'SDSS-J0129-0035':6.088,'SDSS-J2054-0005':5.922} #kpc/pixel.
 #Assumes h=0.67, om_m=0.3, flat Universe in New Wright Cosmo Calc
+distance_modulus={'NDWFS-J1425+3254':48.759,'SDSS-J0005-0006':48.742,'SDSS-J0203+0012':48.685,
+'CFHQS-J0033-0125':48.860,'SDSS-J0129-0035':48.712,'SDSS-J2054-0005':48.822}
 
 wcs = WCS(fits.getheader('NDWFS-J1425+3254/sci_NDWFS-J1425+3254_J.fits.gz'))
 pxscale = 3600*np.abs(np.linalg.eigvals(wcs.pixel_scale_matrix))
