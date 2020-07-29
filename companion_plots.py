@@ -9,6 +9,7 @@ from astropy.io import fits
 import pandas as pd
 from astropy import units as u
 from astropy.coordinates import Angle
+import analyse3DHST
 
 plt.rc('font', family='serif')
 plt.rc('text', usetex=True)
@@ -30,7 +31,7 @@ angular_scale={'NDWFS-J1425+3254':6.026,'SDSS-J0005-0006':6.049,'SDSS-J0203+0012
 #Assumes h=0.67, om_m=0.3, flat Universe in New Wright Cosmo Calc
 
 wcs1425 = WCS(fits.getheader('NDWFS-J1425+3254/sci_NDWFS-J1425+3254_J.fits.gz'))
-pxscale = 3600*np.abs(np.linalg.eigvals(wcs1425.pixel_scale_matrix))
+pxscale = 3600*np.abs(np.linalg.eigvals(wcs1425.pixel_scale_matrix)) #to arcsec
 
 
 def calc_ra_dec(file,position):
@@ -81,7 +82,7 @@ def calc_abs_mag(obs_mag, z):
 
 def plot_beta_mag_obs(ax):
     # Data from Linhua's paper
-    jiang = np.genfromtxt('./beta-mag.txt', names=True, missing_values='--')
+    jiang = np.genfromtxt('./Data/beta-mag.txt', names=True, missing_values='--')
 
     ax.errorbar(jiang['m1500'], jiang['beta'],  yerr=jiang['betaerr'],
                 color='gray', ls='none', marker='o', capthick=0,markerfacecolor='w',
@@ -135,7 +136,7 @@ def plot_beta_mag_obs(ax):
 
 def plot_colour_mag_obs(axes):
   #Jiang 2013
-  jiang = np.genfromtxt('./jiang_2013.txt', delimiter=',',names=True)
+  jiang = np.genfromtxt('./Data/jiang_2013.txt', delimiter=',',names=True)
   axes.errorbar(jiang['F125W'], jiang['F125W']-jiang['F160W'], xerr=jiang['F125W_err'], yerr=np.sqrt(jiang['F125W_err']**2+jiang['F160W_err']**2),
     color='gray', ls='none', marker='o', capthick=0,markerfacecolor='w',
     label='Jiang et al. 2013')
@@ -244,6 +245,8 @@ def load_properties():
       index_err[quasar]=np.zeros((n_companions))
       reff[quasar]=np.zeros((n_companions))
       reff_err[quasar]=np.zeros((n_companions))
+      circ_reff[quasar]=np.zeros((n_companions))
+      circ_reff_err[quasar]=np.zeros((n_companions))
       b_on_a[quasar]=np.zeros((n_companions))
       b_on_a_err[quasar]=np.zeros((n_companions))
       ra_dec[quasar]=[0 for ii in range(0,n_companions)]
@@ -271,6 +274,8 @@ def load_properties():
         b_on_a[quasar][ii]=r_b/reff[quasar][ii]
         b_on_a_err[quasar][ii]=np.sqrt((r_b_err/r_b)**2+(reff_err[quasar][ii]/reff[quasar][ii])**2)*b_on_a[quasar][ii]
 
+        circ_reff[quasar][ii]=reff[quasar][ii]*np.sqrt(b_on_a[quasar][ii])
+        circ_reff_err[quasar][ii]=np.sqrt((reff_err[quasar][ii]/reff[quasar][ii])**2+(0.5*b_on_a_err[quasar][ii]/b_on_a[quasar][ii])**2)*circ_reff[quasar][ii]
 
         xy[quasar][:,ii]=eval(f[0].header['{}SER_XY'.format(ii+2)].split(' ')[0])
         #check for double sersics
@@ -330,7 +335,11 @@ def plot_colour_mag(ax):
   ax.set_xlabel('$m_J$ (AB mag)')
 
 
-def plot_size_mag(ax):
+def plot_size_mag_J(ax):
+
+  list_sizes=[]
+  list_sersics=[]
+  list_mags=[]
 
   for jj,quasar in enumerate(quasars):
     f = fits.open('{}/out_{}_J_residual.fits'.format(quasar,quasar))
@@ -348,32 +357,109 @@ def plot_size_mag(ax):
 
 
         if flag[quasar][ii]==0 or flag[quasar][ii]==2:
+          list_sizes.append(reff[quasar][ii]*pxscale[0])
+          list_sersics.append(index[quasar][ii])
+          list_mags.append(mag[quasar][ii])
+
           if leg==0:
             #Plot size-mag
-            ax.errorbar(-50,-50,xerr=mag_err[quasar][ii],
-            yerr=reff_err[quasar][ii]*pxscale[0]*angular_scale[quasar],marker='o',
+            ax[0].errorbar(-50,-50,xerr=mag_err[quasar][ii],
+            yerr=reff_err[quasar][ii]*pxscale[0],marker='o',
             linestyle='',label=quasar,markeredgecolor=edge_col,color=colors[jj],ms=8)
 
-            ax.errorbar(abs_mag[quasar][ii],reff[quasar][ii]*pxscale[0]*angular_scale[quasar],xerr=mag_err[quasar][ii],
-            yerr=reff_err[quasar][ii]*pxscale[0]*angular_scale[quasar],marker='o',
+            ax[0].errorbar(mag[quasar][ii],reff[quasar][ii]*pxscale[0],xerr=mag_err[quasar][ii],
+            yerr=reff_err[quasar][ii]*pxscale[0],marker='o',
+            linestyle='',label='_nolabel_',markeredgecolor=edge_col,color=colors[jj],ms=12,markerfacecolor=facecolor,alpha=alpha)
+
+            #Plot sersic index-mag
+            ax[1].errorbar(mag[quasar][ii],index[quasar][ii],xerr=mag_err[quasar][ii],
+            yerr=index_err[quasar][ii],marker='o',
             linestyle='',label='_nolabel_',markeredgecolor=edge_col,color=colors[jj],ms=12,markerfacecolor=facecolor,alpha=alpha)
 
             if numbers:
-              ax.plot(abs_mag[quasar][ii],reff[quasar][ii]*pxscale[0]*angular_scale[quasar],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
+              ax[0].plot(mag[quasar][ii],reff[quasar][ii]*pxscale[0],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
+              ax[1].plot(mag[quasar][ii],index[quasar][ii],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
             leg=1
           else:
             #Plot colour-mag
-            ax.errorbar(abs_mag[quasar][ii],reff[quasar][ii]*pxscale[0]*angular_scale[quasar],xerr=mag_err[quasar][ii],
-            yerr=reff_err[quasar][ii]*pxscale[0]*angular_scale[quasar],marker='o',
+            ax[0].errorbar(mag[quasar][ii],reff[quasar][ii]*pxscale[0],xerr=mag_err[quasar][ii],
+            yerr=reff_err[quasar][ii]*pxscale[0],marker='o',
+            linestyle='',label='__nolabel__',markeredgecolor=edge_col,color=colors[jj],ms=12,markerfacecolor=facecolor,alpha=alpha)
+            #Plot sersic index-mag
+            ax[1].errorbar(mag[quasar][ii],index[quasar][ii],xerr=mag_err[quasar][ii],
+            yerr=index_err[quasar][ii],marker='o',
             linestyle='',label='__nolabel__',markeredgecolor=edge_col,color=colors[jj],ms=12,markerfacecolor=facecolor,alpha=alpha)
 
             if numbers:
-              ax.plot(abs_mag[quasar][ii],reff[quasar][ii]*pxscale[0]*angular_scale[quasar],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
+              ax[0].plot(mag[quasar][ii],reff[quasar][ii]*pxscale[0],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
+              ax[1].plot(mag[quasar][ii],index[quasar][ii],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
 
-  ax.set_ylabel("Radius (kpc)")
-  ax.set_xlabel(r'$M_{1500}$ (AB mag)')
-  ax.legend(fontsize='small',ncol=1,loc=(0.56,0.75))
-  ax.axis([-24,-18,0,4.5])
+  ax[0].set_ylabel("Radius (arcsec)")
+  ax[0].set_xlabel(r'$m_J$ (AB mag)')
+  ax[0].axis([21,27,0,1.2])
+
+  ax[1].set_ylabel(r"S\'ersic Index")
+  ax[1].set_xlabel(r'$m_J$ (AB mag)')
+  ax[1].axis([21,27,0,8])
+
+  list_sizes=np.array(list_sizes)
+  list_mags=np.array(list_mags)
+  diff_sizes_z6=np.zeros_like(list_sizes)
+  diff_sersic=np.zeros_like(list_sizes)
+  for qq in range(0,len(list_sizes)):
+    for m_bin in range(0,len(mags_vdw)-1):
+      low_m=mags_vdw[m_bin]
+      high_m=mags_vdw[m_bin+1]
+      if (list_mags[qq]>low_m)&(list_mags[qq]<high_m):
+        diff_sizes_z6[qq]=list_sizes[qq]-med_vdw[m_bin]
+        diff_sersic[qq]=list_sersics[qq]-med_vdw_S[m_bin]
+
+  print(np.median(diff_sizes_z6),np.mean(diff_sizes_z6))
+  print(np.median(diff_sersic),np.mean(diff_sersic))
+
+def plot_size_mag(ax):
+    for jj,quasar in enumerate(quasars):
+      f = fits.open('{}/out_{}_J_residual.fits'.format(quasar,quasar))
+
+      n_companions=len(f[0].header['*SER_ANG'])
+      if n_companions>0:
+        leg=0
+        for ii in range(0,n_companions):
+          if (abs_mag[quasar][ii]<-22.1) or (beta[quasar][ii]>0) or (beta[quasar][ii]<-4):
+            edge_col=colors[jj]
+            facecolor='w'
+          else:
+            edge_col=colors[jj]#'k'
+            facecolor=colors[jj]
+
+
+          if flag[quasar][ii]==0 or flag[quasar][ii]==2:
+            if leg==0:
+              #Plot size-mag
+              ax.errorbar(-50,-50,xerr=mag_err[quasar][ii],
+              yerr=circ_reff_err[quasar][ii]*pxscale[0]*angular_scale[quasar],marker='o',
+              linestyle='',label=quasar,markeredgecolor=edge_col,color=colors[jj],ms=8)
+
+              ax.errorbar(abs_mag[quasar][ii],circ_reff[quasar][ii]*pxscale[0]*angular_scale[quasar],xerr=mag_err[quasar][ii],
+              yerr=circ_reff_err[quasar][ii]*pxscale[0]*angular_scale[quasar],marker='o',
+              linestyle='',label='_nolabel_',markeredgecolor=edge_col,color=colors[jj],ms=12,markerfacecolor=facecolor,alpha=alpha)
+
+              if numbers:
+                ax.plot(abs_mag[quasar][ii],circ_reff[quasar][ii]*pxscale[0]*angular_scale[quasar],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
+              leg=1
+            else:
+              #Plot colour-mag
+              ax.errorbar(abs_mag[quasar][ii],circ_reff[quasar][ii]*pxscale[0]*angular_scale[quasar],xerr=mag_err[quasar][ii],
+              yerr=circ_reff_err[quasar][ii]*pxscale[0]*angular_scale[quasar],marker='o',
+              linestyle='',label='__nolabel__',markeredgecolor=edge_col,color=colors[jj],ms=12,markerfacecolor=facecolor,alpha=alpha)
+
+              if numbers:
+                ax.plot(abs_mag[quasar][ii],circ_reff[quasar][ii]*pxscale[0]*angular_scale[quasar],marker=markers_nums[ii-ind_offset[quasar][ii]],color='k',zorder=100,ms=7)
+
+    ax.set_ylabel("Circularized Radius (kpc)")
+    ax.set_xlabel(r'$M_{1500}$ (AB mag)')
+    ax.legend(fontsize='small',ncol=1,loc=(0.477,0.6))
+    ax.axis([-24,-18,0,4])
 
 
 def plot_size_mag_obs(axes):
@@ -439,7 +525,7 @@ def save_table():
       individual_df.loc[ii]=[quasar,
       r"${:.1f}\pm{:.1f}$".format(mag[quasar][ii],mag_err[quasar][ii]),
       r"${:.1f}\pm{:.1f}$".format(mag[quasar][ii]-mag_H[quasar][ii],mag_H_err[quasar][ii]),
-      ra_dec[quasar][ii].ra.to_string(unit=u.hour,precision=2),
+      ra_dec[quasar][ii].ra.to_string(unit=u.hour,precision=3),
       ra_dec[quasar][ii].dec.to_string(precision=2),
       r"${:.1f}\pm{:.1f}$".format(np.sqrt(xy_sep[quasar][0,ii]**2+xy_sep[quasar][1,ii]**2)*pxscale[0]*angular_scale[quasar],
       np.sqrt(xy_err[quasar][0,ii]**2+xy_err[quasar][1,ii]**2)*pxscale[1]*angular_scale[quasar]),
@@ -466,6 +552,8 @@ if __name__=="__main__":
   index_err={}
   reff={}
   reff_err={}
+  circ_reff={}
+  circ_reff_err={}
   b_on_a={}
   b_on_a_err={}
   xy={}
@@ -521,6 +609,27 @@ if __name__=="__main__":
     plt.savefig('Plots/size_mag.pdf')
   else:
     plt.savefig('Plots/size_mag_nonumbers.pdf')
+  plt.show()
+
+  fig,ax=plt.subplots(2,3,figsize=(8.8,5),gridspec_kw={'width_ratios':[1,1,0.4],'wspace':0.32,'hspace':0.05},sharex=True)
+  med_vdw, mags_vdw, med_vdw_S, mags_vdw_S = analyse3DHST.plot_VDW_sizes(ax) #median sizes, sersics and corresponding bins
+
+  plot_size_mag_J(ax[:,0])
+  plot_size_mag_J(ax[:,1])
+
+
+  ax[0,0].legend(fontsize='small',ncol=1,loc=(2.3,-0.35))
+  ax[0,0].set_xlabel('')
+  ax[0,1].set_xlabel('')
+  ax[0,2].axis('off')
+  ax[1,2].axis('off')
+  ax[0,0].set_title('$z\simeq6$ Galaxies')
+  ax[0,1].set_title('Foreground Galaxies')
+  plt.subplots_adjust(left=0.08, top=0.95)
+  if numbers:
+    plt.savefig('Plots/size_mag_3DHST.pdf')
+  else:
+    plt.savefig('Plots/size_mag_3DHST_nonumbers.pdf')
   plt.show()
 
   numbers=False

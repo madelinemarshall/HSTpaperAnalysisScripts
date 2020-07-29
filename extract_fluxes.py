@@ -37,8 +37,8 @@ def plot_literature_observations(ax):
   logMBH=np.log10(0.49)+1.17*np.log10(np.array(x)/10**11)+9
   ax.errorbar(np.log10(x),logMBH,yerr=0.28,label='Kormendy \& Ho (2013)\n- Fit',capsize=3,linewidth=2.5, color='k',zorder=0)
   ax.set_xlim([9,12])
-  ax.set_xlabel(r'$M_\ast/M_\odot$')
-  ax.set_ylabel(r'$M_{\mathrm{BH}}/M_\odot$')
+  ax.set_xlabel(r'$M_\ast/M_\odot$',fontsize=10)
+  ax.set_ylabel(r'$M_{\mathrm{BH}}/M_\odot$',fontsize=10)
 
   #Willot+17
   Mdyn=[10.10,10.11,10.64,10.62,10.55,10.59,10.60,10.78,10.76,10.83,10.86,10.86,

@@ -71,7 +71,7 @@ plt.errorbar(our_M1450[-1],our_SUV[-1]/our_UVflux[-1],yerr=0.5*our_SUV[-1]/our_U
 
 plt.xlabel(r'$M_{1450\AA}$ (AB mag)')
 plt.ylabel(r'$F_{250GHz}/F_{1\mu m}$')
-plt.legend(loc='upper left', fontsize='small')
+plt.legend(loc='upper left', fontsize='small',edgecolor=[0.3,0.3,0.3])
 plt.yscale('log')
 plt.tight_layout()
 plt.savefig('FIRvsFUV.pdf')
